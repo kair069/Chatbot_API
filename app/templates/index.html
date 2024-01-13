@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Chatbot</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        
+        h1 {
+            color: #3498db;
+        }
+        
+        #chat-container {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        
+        #chat-box {
+            padding: 10px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        
+        #user-input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        
+        #user-input:focus {
+            outline: none;
+        }
+        
+        #user-input::placeholder {
+            color: #ccc;
+        }
+        
+        #user-input:focus::placeholder {
+            color: #999;
+        }
+        
+        .user-message, .bot-message {
+            margin: 10px 0;
+        }
+        
+        .user-message:last-child, .bot-message:last-child {
+            margin-bottom: 0;
+        }
+        
+        .client-list {
+            list-style-type: none;
+            padding: 0;
+            text-align: left;
+            margin-top: 10px;
+        }
+        
+        .client-list-item {
+            margin: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .client-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .bot-message a {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .bot-message a:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatbot</h1>
+    <div id="chat-container">
+        <div id="chat-box"></div>
+        <input type="text" class="bot-link" id="user-input" placeholder="Escribe un mensaje...">
+    </div>
+
+    <script>
+        const chatBox = document.getElementById("chat-box");
+        const userInput = document.getElementById("user-input");
+
+        async function iniciarConversacion() {
+            const respuestaInicial = await obtenerRespuestaInicial();
+            chatBox.innerHTML += `<p><strong>Chatbot:</strong> ${respuestaInicial}</p>`;
+        }
+
+        async function obtenerRespuestaInicial() {
+            const respuesta = await fetch("/get?msg=hola");
+            const data = await respuesta.json();
+            return data.response;
+        }
+
+        iniciarConversacion();
+
+        userInput.addEventListener("keyup", function(event) {
+            if (event.key === "Enter") {
+                const userMessage = userInput.value;
+                chatBox.innerHTML += `<p><strong>Tú:</strong> ${userMessage}</p>`;
+                userInput.value = "";
+
+                fetch(`/get?msg=${userMessage}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        chatBox.innerHTML += `<p><strong>Chatbot:</strong> ${data.response}</p>`;
+                        mostrarImagenesClientes(data.response);
+                    });
+            }
+        });
+
+        function mostrarImagenesClientes(response) {
+            const regex = /https:\/\/[^\s]+\.jpg/g;
+            const matches = response.match(regex);
+
+            if (matches && matches.length > 0) {
+                const clientList = document.createElement("ul");
+                clientList.className = "client-list";
+
+                matches.forEach(match => {
+                    const listItem = document.createElement("li");
+                    listItem.className = "client-list-item";
+
+                    const image = document.createElement("img");
+                    image.src = match;
+                    image.alt = "Cliente";
+
+                    image.className = "client-image";
+
+                    listItem.appendChild(image);
+                    clientList.appendChild(listItem);
+                });
+
+                chatBox.appendChild(clientList);
+            }
+        }
+
+        function agregarMensaje(sender, message) {
+            const messageContainer = document.createElement("div");
+            messageContainer.className = sender === "Chatbot" ? "bot-message" : "user-message";
+    
+            const messageText = document.createElement("p");
+            messageText.innerHTML = `<strong>${sender}:</strong> ${message}`;
+    
+            messageContainer.appendChild(messageText);
+            chatBox.appendChild(messageContainer);
+    
+            chatBox.scrollTop = chatBox.scrollHeight; // Desplazar hacia abajo para mostrar el último mensaje
+        }
+    
+        function agregarMensajeConEnlace(sender, message, linkText, linkUrl) {
+            const messageContainer = document.createElement("div");
+            messageContainer.className = "bot-message";
+        
+            const messageText = document.createElement("p");
+            messageText.innerHTML = `<strong>${sender}:</strong> ${message}`;
+        
+            const linkContainer = document.createElement("p");
+            const link = document.createElement("a");
+            link.href = linkUrl;
+            link.target = "_blank"; // Abrir en una nueva pestaña
+            link.innerText = linkText;
+            link.style.cursor = "pointer"; // Cambiar el cursor al pasar sobre el enlace
+            link.className = "bot-link"; // Agrega la clase "bot-link" al enlace
+        
+            linkContainer.appendChild(link);
+        
+            messageContainer.appendChild(messageText);
+            messageContainer.appendChild(linkContainer);
+            chatBox.appendChild(messageContainer);
+        
+            chatBox.scrollTop = chatBox.scrollHeight; // Desplazar hacia abajo para mostrar el último mensaje
+        }
+
+        function addBotLink(linkText, linkUrl) {
+            const linkContainer = document.createElement("p");
+            const link = document.createElement("a");
+            link.href = linkUrl;
+            link.target = "_blank";
+            link.textContent = linkText;
+            link.className = "bot-link";
+            linkContainer.appendChild(link);
+            chatBox.appendChild(linkContainer);
+        }
+    
+        function handleUserInput() {
+            const userMessage = userInput.value;
+            addUserMessage(`Tú: ${userMessage}`);
+            userInput.value = "";
+    
+            // Lógica para obtener la respuesta del chatbot (usar fetch o tu lógica actual)
+            // En este ejemplo, simularemos la respuesta del chatbot
+            const botResponse = obtenerRespuestaDelChatbot(userMessage);
+            
+            // Procesar y mostrar la respuesta del chatbot
+            procesarRespuestaDelChatbot(botResponse);
+        }
+
+        function obtenerRespuestaDelChatbot(userMessage) {
+            // Simulación de una respuesta del chatbot
+            return "¡Respuesta del Chatbot! Puedes hacer clic en [Enlace Ejemplo](https://example.com)";
+        }
+    
+        function procesarRespuestaDelChatbot(botResponse) {
+            addBotMessage(`Chatbot: ${botResponse}`);
+    
+            // Si la respuesta incluye un enlace, agregarlo como botón
+            const linkMatch = botResponse.match(/\[Enlace (.+?)\]\((.+?)\)/);
+            if (linkMatch) {
+                const linkText = linkMatch[1];
+                const linkUrl = linkMatch[2];
+                addBotLink(linkText, linkUrl);
+            }
+    
+            // Desplazar hacia abajo para mostrar el último mensaje
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        userInput.addEventListener("keyup", function (event) {
+            if (event.key === "Enter") {
+                handleUserInput();
+            }
+        });
+    </script>
+</body>
+</html>
